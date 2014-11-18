@@ -263,7 +263,7 @@ function replaceSpecialChars(text) {
     return unicodeValue(c);
   });
   
-  converted = converted.replace("'", "\\'");
+  converted = converted.replace(/'/g, "\\'");
   
   return converted;
 }
@@ -275,7 +275,7 @@ function replaceUnicode(text) {
     return String.fromCharCode(parseInt(b, 16));
   });
   
-  converted = converted.replace("\\'", "'");
+  converted = converted (/\'/g, "'");
   return converted;
 }
 
@@ -447,27 +447,22 @@ function processiosForm(formObject) {
   
   var i = 0;
   var found  = 0;
-  var logs = "";
   
   var entries = content.split("\n");
   var spareEntries = entries.slice(0);
   for (i = 0; i < entries.length; i++) {
-  
-    logs += "Parsing ("+entries[i]+")\n";
     
     // regex to capture the key and the text in the format:
     // "key" = "text"; 
     var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
     
     var match = regex.exec(entries[i]);
-    logs += "match -> ("+match+")\n";
     var retries = 0;
     while ((match == null) && (retries < 5)) {
       // Sometimes the match fails in the first time. It's probably a bug
       // on javascript. So, let's try again.
       var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
       match = retryRegex.exec(entries[i]);
-      logs += "retryMatch -> ("+match+") retry #" + retries +  "\n" ;
 
       if(match != null) {
         break;
@@ -476,7 +471,6 @@ function processiosForm(formObject) {
     }
     
     if(match != null) {
-      logs += "match ("+match.toString()+")\n";
       var key = match[1];
       var text = match[2];
       found++;
@@ -517,7 +511,6 @@ function processiosForm(formObject) {
         // on javascript. So, let's try again.
         var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
         match = retryRegex.exec(spareEntries[j]);
-        logs += "retryMatch -> ("+match+") retry #" + retries +  "\n" ;
         
         if(match != null) {
           break;
@@ -537,9 +530,6 @@ function processiosForm(formObject) {
       }
     }
   }
-  
-  var folder = DocsList.getFolder('easyi18n');
-  folder.createFile('log.txt', logs);
 
   driveFile.setTrashed(true);
   
