@@ -34,3 +34,15 @@ You can also <b>fill</b> the spreadsheet based in a localization file from Andro
 
 <img src="http://www.felipesilveira.com.br/localizationtool/import.png" align="center" />
 
+<h3>Installation</h3>
+
+The installation of an addon is pretty simple. Just create a new Google Spreadsheet and click on <i>Tools > Script editor</i>. 
+
+In the created project, copy the contents of localizationtool.gs. Go back to the spreadsheet and refresh it. The "Localization Tool" menu will appear.
+
+<h3>WishList (or next features)</h3>
+
+- Support for android string-array and plurals.
+- Settings (So the user will be able to select the directory where the files will be generating.
+- Duplicate strings checker
+Send your ideas for webfelipe@gmail.com
