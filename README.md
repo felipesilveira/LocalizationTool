@@ -2,7 +2,7 @@
 
 Localization Tool is made for Google Apps Script platform and provides an easy and efficient way to manage strings for Android and iOS localized apps.
 
-The tool runs as an addon for Google Spreadsheet and creates an extra menu option with the following options: "Import Android/iOS" files and "Generate Localization Files". With those options, you can fill the spreasheet based on your localization file and/or create the localization files (Android's strings.xml and iOS Localizable.string) based on the data from the spreadsheet.
+The tool runs as an addon for Google Spreadsheet and creates an extra menu option with the following options: "Import Android/iOS" files and "Generate Localization Files". With those options, you can fill the spreadsheet based on your localization file and/or create the localization files (Android's strings.xml and iOS Localizable.string) based on the data from the spreadsheet.
 
 <h3>The Spreadsheet</h3>
 
