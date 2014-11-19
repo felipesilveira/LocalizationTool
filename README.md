@@ -45,4 +45,6 @@ In the created project, copy the contents of localizationtool.gs. Go back to the
 - Support for android string-array and plurals.
 - Settings (So the user will be able to select the directory where the files will be generating.
 - Duplicate strings checker
+- Windows Phone support.
+
 Send your ideas for webfelipe@gmail.com
