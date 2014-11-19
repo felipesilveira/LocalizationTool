@@ -7,7 +7,7 @@
 * Author: Felipe Silveira
 * 
 * Licensed under GPL v2.0
-* version 0.43
+* version 0.44
 *
 * More info on github.com/felipesilveira/localizationtool
 */
@@ -275,7 +275,7 @@ function replaceUnicode(text) {
     return String.fromCharCode(parseInt(b, 16));
   });
   
-  converted = converted (/\'/g, "'");
+  converted = converted.replace(/\\\'/g, "'");
   return converted;
 }
 
@@ -352,6 +352,7 @@ function processAndroidForm(formObject) {
         if(!row[langIndex - 1]) {
           var range = sheet.getRange(x+1, langIndex);
           range.setValue(replaceUnicode(text));
+          break;
         } 
       }
 
@@ -362,6 +363,7 @@ function processAndroidForm(formObject) {
           var range = sheet.getRange(x+1, 1);
           range.setValue(key);
           spareEntries[i].setText("");
+            break;
         } 
       }
     }
@@ -448,6 +450,8 @@ function processiosForm(formObject) {
   var i = 0;
   var found  = 0;
   
+  var texts = "";
+  
   var entries = content.split("\n");
   var spareEntries = entries.slice(0);
   for (i = 0; i < entries.length; i++) {
@@ -458,12 +462,11 @@ function processiosForm(formObject) {
     
     var match = regex.exec(entries[i]);
     var retries = 0;
-    while ((match == null) && (retries < 5)) {
+    while ((match == null) && (retries < 2)) {
       // Sometimes the match fails in the first time. It's probably a bug
       // on javascript. So, let's try again.
       var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
       match = retryRegex.exec(entries[i]);
-
       if(match != null) {
         break;
       }
@@ -484,15 +487,17 @@ function processiosForm(formObject) {
           if(!row[langIndex - 1]) {
             var range = sheet.getRange(x+1, langIndex);
             range.setValue(text);
+            break;
           } 
         }
-
-        if(row[langIndex] && ((row[langIndex] == text) 
-          || (text == substitutionsForAndroid(replaceSpecialChars(row[langIndex]))))) {
+        
+        if(row[langIndex - 1] && ((row[langIndex - 1] == text) 
+          || (substitutionsForAndroid(replaceSpecialChars(text)) == substitutionsForAndroid(replaceSpecialChars(row[langIndex - 1])).trim()))) {
             // if text already exists, just import the key
             var range = sheet.getRange(x+1, 2);
             range.setValue(key);
             spareEntries[i] = "";
+            break;
         }
       }
     }
@@ -506,7 +511,7 @@ function processiosForm(formObject) {
       var match = regex.exec(spareEntries[j]);
       
       var retries = 0;
-      while ((match == null) && (retries < 5)) {
+      while ((match == null) && (retries < 2)) {
         // Sometimes the match fails in the first time. It's probably a bug
         // on javascript. So, let's try again.
         var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
@@ -533,7 +538,7 @@ function processiosForm(formObject) {
 
   driveFile.setTrashed(true);
   
-  return  found + " strings found.";
+  return  found + " strings found. <br>" + texts;
 }
 
 // Debug function
