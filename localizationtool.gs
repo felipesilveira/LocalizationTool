@@ -7,7 +7,7 @@
 * Author: Felipe Silveira
 * 
 * Licensed under GPL v2.0
-* version 0.44
+* version 0.45
 *
 * More info on github.com/felipesilveira/localizationtool
 */
@@ -29,18 +29,51 @@ function generateFiles() {
     
     var contents = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n";
     
+    var printingStringArray = "";
+    
     for (var i = 1; i <= numRows - 1; i++) {
       var row = values[i];
+      
+      // identify a string-array occurency
+      var stringArrayRegex = /string-array\:(.*)/;
+      var stringArrayMatch = stringArrayRegex.exec(row[0]);
+      if(stringArrayMatch && stringArrayMatch[1]) {
+        if(!printingStringArray.equals(stringArrayMatch[1] || (printingStringArray.equals(""))) ) {
+          if(!printingStringArray.equals("")) {
+            contents += "    </string-array>\n";
+          }
+          contents += "    <string-array name=\"" + stringArrayMatch[1] + "\">\n";  
+          printingStringArray = stringArrayMatch[1];
+        } 
+        if(printingStringArray == "") {
+          contents += "    <string-array name=\"" + stringArrayMatch[1] + "\">\n";  
+          printingStringArray = stringArrayMatch[1];
+        }
+        contents += "        </item>"+row[j]+"</item>\n";
+        continue;
+        
+      } else if(printingStringArray) {
+        contents += "    </string-array>\n";
+        printingStringArray = "";
+      }
+      
       if((row[j] != "") && (row[0] != "")) {
         contents += "    <string name=\"" + row[0] + "\">" + substitutionsForAndroid(replaceSpecialChars(row[j])) + "</string>\n";
       }
       var range = sheet.getRange(i+1, j+1, 1);
+      
       if((row[j] == "") && (row[2] != "")) {
         range.setBackground("#FA8072");
       } else {
         range.setBackground("#FFFFFF");
       }
     }
+    
+    if(printingStringArray) {
+      contents += "    </string-array>\n";
+      printingStringArray = false;
+    }
+    
     contents += "</resources>\n";
     
     var folder = getOrCreateFolder('LocalizationTool');
@@ -458,21 +491,9 @@ function processiosForm(formObject) {
     
     // regex to capture the key and the text in the format:
     // "key" = "text"; 
-    var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
-    
+    var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/;  
     var match = regex.exec(entries[i]);
-    var retries = 0;
-    while ((match == null) && (retries < 2)) {
-      // Sometimes the match fails in the first time. It's probably a bug
-      // on javascript. So, let's try again.
-      var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
-      match = retryRegex.exec(entries[i]);
-      if(match != null) {
-        break;
-      }
-      retries++;
-    }
-    
+
     if(match != null) {
       var key = match[1];
       var text = match[2];
@@ -507,21 +528,8 @@ function processiosForm(formObject) {
   lastIndex++;
   for (var j = 0; j <= spareEntries.length; j++) {
     if(spareEntries[j] != "") {
-      var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
+      var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/;
       var match = regex.exec(spareEntries[j]);
-      
-      var retries = 0;
-      while ((match == null) && (retries < 2)) {
-        // Sometimes the match fails in the first time. It's probably a bug
-        // on javascript. So, let's try again.
-        var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
-        match = retryRegex.exec(spareEntries[j]);
-        
-        if(match != null) {
-          break;
-        }
-        retries++;
-      }
       
       if(match != null) {
         var key = match[1];
