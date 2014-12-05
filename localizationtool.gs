@@ -162,13 +162,11 @@ function getSuccessGeneratedMessageHtml() {
 * Creates the menu on spreadsheet menu bar.
 */
 function onOpen(e) {
-   SpreadsheetApp.getUi()
-       .createMenu('Localization Tool')
+   SpreadsheetApp.getUi().createAddonMenu()
        .addItem('Initialize Spreadsheet', 'initialize')
        .addSeparator()
-       .addSubMenu(SpreadsheetApp.getUi().createMenu('Import')
-           .addItem('Import Android File', 'importAndroidFile')
-           .addItem('Import iOS File', 'importiosFile'))
+       .addItem('Import Android File', 'importAndroidFile')
+       .addItem('Import iOS File', 'importiosFile')
        .addItem('Generate Localization Files', 'generateFiles')
        .addSeparator()
        .addItem('Help', 'showHelp')
