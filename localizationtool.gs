@@ -7,7 +7,7 @@
 * Author: Felipe Silveira
 * 
 * Licensed under GPL v2.0
-* version 0.46
+* version 0.47
 *
 * More info on github.com/felipesilveira/localizationtool
 */
@@ -247,11 +247,11 @@ function initialize () {
     range.setFontStyle("bold");
     sheet.setFrozenRows(1);
     
-    ui.alert('The spreadsheet header was created successfully.\n\n' +
-             'Now you can start editing the spreadsheet. \n\nAdd extra ' +
-             'language columns by setting it\'s code in the header (for example: es, pt-br, etc)' +
+    ui.alert('The spreadsheet header was created successfully. ' +
+             'Now you can start editing the spreadsheet. \n\n ' +
+             'You can add another language by inserting its code (for example: es, pt-br) in the header ' +
              ' \nto the ' +
-             'right of the default language (cells D1, E1 and and so on). ');
+             'right of the default language (cells D1, E1 and so on). ');
     range = sheet.getRange(1, 4, 1);
     range.activate();
   } 
