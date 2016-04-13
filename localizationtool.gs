@@ -7,9 +7,9 @@
 * Author: Felipe Silveira
 * 
 * Licensed under GPL v2.0
-* version 0.47
+* version 0.44
 *
-* More info on github.com/felipesilveira/localizationtool
+* More info on felipesilveira.com.br/localizationtool or github.com/felipesilveira/localizationtool
 */
 
 /**
@@ -22,8 +22,6 @@ function generateFiles() {
   var values = rows.getValues();
   var app = UiApp.createApplication();
   
-  showLoadingDialog("Generating files...");
-  
   var titleRow = values[0];
   
   // Generating Android file
@@ -31,51 +29,18 @@ function generateFiles() {
     
     var contents = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n";
     
-    var printingStringArray = "";
-    
     for (var i = 1; i <= numRows - 1; i++) {
       var row = values[i];
-      
-      // identify a string-array occurency
-      var stringArrayRegex = /string-array\:(.*)/;
-      var stringArrayMatch = stringArrayRegex.exec(row[0]);
-      if(stringArrayMatch && stringArrayMatch[1]) {
-        if(!printingStringArray.equals(stringArrayMatch[1] || (printingStringArray.equals(""))) ) {
-          if(!printingStringArray.equals("")) {
-            contents += "    </string-array>\n";
-          }
-          contents += "    <string-array name=\"" + stringArrayMatch[1] + "\">\n";  
-          printingStringArray = stringArrayMatch[1];
-        } 
-        if(printingStringArray == "") {
-          contents += "    <string-array name=\"" + stringArrayMatch[1] + "\">\n";  
-          printingStringArray = stringArrayMatch[1];
-        }
-        contents += "        </item>"+row[j]+"</item>\n";
-        continue;
-        
-      } else if(printingStringArray) {
-        contents += "    </string-array>\n";
-        printingStringArray = "";
-      }
-      
       if((row[j] != "") && (row[0] != "")) {
         contents += "    <string name=\"" + row[0] + "\">" + substitutionsForAndroid(replaceSpecialChars(row[j])) + "</string>\n";
       }
       var range = sheet.getRange(i+1, j+1, 1);
-      
       if((row[j] == "") && (row[2] != "")) {
         range.setBackground("#FA8072");
       } else {
         range.setBackground("#FFFFFF");
       }
     }
-    
-    if(printingStringArray) {
-      contents += "    </string-array>\n";
-      printingStringArray = false;
-    }
-    
     contents += "</resources>\n";
     
     var folder = getOrCreateFolder('LocalizationTool');
@@ -89,8 +54,7 @@ function generateFiles() {
       valuesFolder = getOrCreateFolder('values-'+titleRow[j], resFolder, 'LocalizationTool/android/res/' + 'values-'+titleRow[j]);
     }
         
-    deleteFileByName(valuesFolder, 'strings.xml');
-    valuesFolder.createFile('strings.xml', contents, 'application/xml');
+    recreateFile(valuesFolder, 'strings.xml', contents, 'application/xml');
   }
   
   // Generating ios file
@@ -105,20 +69,27 @@ function generateFiles() {
       }
     }
     
-    var folder = DocsList.getFolder('LocalizationTool');
-    var resFolder = getOrCreateFolder("ios", folder, 'LocalizationTool/ios');
+    var resFolder = getFolderByPath('LocalizationTool/ios');
     
     var valuesFolder;
     
-    valuesFolder = getOrCreateFolder(titleRow[j] + ".lproj", resFolder, 'LocalizationTool/ios/' + titleRow[j] + ".lproj");
+    valuesFolder = getFolderByPath('LocalizationTool/ios/' + titleRow[j] + ".lproj");
     
-    deleteFileByName(valuesFolder, 'Localizable.string');
-    valuesFolder.createFile('Localizable.string', contents);
+    recreateFile(valuesFolder, 'Localizable.string', contents, "text/plain");
   }
   
   showSuccessGeneratedMessage();
   
   return app;
+};
+
+function recreateFile(valuesDir, fileName, document, type) {
+  var iterator = valuesDir.getFilesByName(fileName);
+  if (iterator.hasNext()) {
+    valuesDir.removeFile(iterator.next());
+  }
+
+  return valuesDir.createFile(fileName, document, type);
 }
 
 /**
@@ -129,6 +100,26 @@ function makeXML(key, value) {
   xml['@attrib1'] = key;
   xml.string = value;
   return xml.toString();
+}
+
+/**
+* Returns the folder or creates it, if not found.
+*/
+function getFolderByPath(path) {
+  var parts = path.split("/");
+
+  if (parts[0] == '') parts.shift(); // Did path start at root, '/'?
+
+  var folder = DriveApp.getRootFolder();
+  for (var i = 0; i < parts.length; i++) {
+    var result = folder.getFoldersByName(parts[i]);
+    if (result.hasNext()) {
+      folder = result.next();
+    } else {
+      folder = folder.createFolder(parts[i]);
+    }
+  }
+  return folder;
 }
 
 /**
@@ -149,7 +140,7 @@ function showSuccessGeneratedMessage() {
 */
 function getSuccessGeneratedMessageHtml() {
 
-  var folder = DocsList.getFolder('LocalizationTool');
+  var folder = getFolderByPath('LocalizationTool');
   
   return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
     "<div>The localization files were successfully created in the folder <b>LocalizationTool</b>." +
@@ -164,11 +155,13 @@ function getSuccessGeneratedMessageHtml() {
 * Creates the menu on spreadsheet menu bar.
 */
 function onOpen(e) {
-   SpreadsheetApp.getUi().createAddonMenu()
+   SpreadsheetApp.getUi()
+       .createMenu('Localization Tool')
        .addItem('Initialize Spreadsheet', 'initialize')
        .addSeparator()
-       .addItem('Import Android File', 'importAndroidFile')
-       .addItem('Import iOS File', 'importiosFile')
+       .addSubMenu(SpreadsheetApp.getUi().createMenu('Import')
+           .addItem('Import Android File', 'importAndroidFile')
+           .addItem('Import iOS File', 'importiosFile'))
        .addItem('Generate Localization Files', 'generateFiles')
        .addSeparator()
        .addItem('Help', 'showHelp')
@@ -195,13 +188,14 @@ function getHelpHtml() {
   // Minified version of http://www.felipesilveira.com.br/localizationtool/help.html
   return "<html><head><title>Localization Tool Help</title><link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\"></head><body><img src=\"http://www.felipesilveira.com.br/localizationtool/logo.png\"><p>Localization Tool is made for Google Apps Script platform and provides an easy and efficient way to manage strings for Android and iOS localized apps.</p><p>The tool runs as an addon for Google Spreadsheet and creates an extra menu option with the following options: \"Import Android/iOS\" files and \"Generate Localization Files\". With those options, you can fill the spreadsheet based on your localization file and/or create the localization files (Android's strings.xml and iOS Localizable.string) based on the data from the spreadsheet.</p><h2>The Spreadsheet</h2><p>Localization Tool works on a spreadsheet in the following format:</p><img src=\"http://www.felipesilveira.com.br/localizationtool/spreadsheetformat.png\" align=\"center\"/><p>The spreadsheet should contain one column for the android key, one column for the ios key and an extra column for each supported language, with the language code in the header. Each line in the spreadsheet corresponds to a string to be generated in the localization files.</p><p>To initialize the header you can use the menu option <i>Localization Tool > Initialize</i>. This option creates the header in the format above.</p><h2>Generating the localization files</h2><p>To generate android and iOS files, use the \"Generate Localization Files\" menu option:</p><img src=\"http://www.felipesilveira.com.br/localizationtool/generateitem.png\" align=\"center\"/><p>Using this option, the spreadsheet data will be processed and the localization files will be generated in the Google Drive directory called \"LocalizationTool\":</p><img src=\"http://www.felipesilveira.com.br/localizationtool/directory.png\" align=\"center\"/><p>After the files generation, the script also highlights the strings without translation.</p><img src=\"http://www.felipesilveira.com.br/localizationtool/spreadsheetafter.png\" align=\"center\"/><h2>Importing Android/iOS files</h2><p>You can also <b>fill</b> the spreadsheet based in a localization file from Android or iOS using the function <b>Import</b>. Click on <i>Localization Tool > Import > Import Android File or Import iOS File</i> and then upload the file and select its language:</p><img src=\"http://www.felipesilveira.com.br/localizationtool/import.png\" align=\"center\"/></body></html>";
 }
+
 /**
 * Shows the about dialog.
 */
 function showAbout() {
   var html = HtmlService.createHtmlOutput(getAboutHtml())
-  .setWidth(260)
-  .setHeight(160);
+  .setWidth(280)
+  .setHeight(180);
   
   SpreadsheetApp.getUi()
   .showModalDialog(html, 'About');
@@ -229,7 +223,7 @@ function initialize () {
   
   var result = ui.alert(
     'Please confirm',
-    'To start using this tool, the first line of this spreadsheet (the header) needs to be modified. ' +
+    'To start using this tool, the first line of this spreadsheet (the header) will be modified. ' +
     '\nIf it is already filled, the data will be lost. Are you sure you want to continue?',
     ui.ButtonSet.YES_NO);
   
@@ -247,11 +241,11 @@ function initialize () {
     range.setFontStyle("bold");
     sheet.setFrozenRows(1);
     
-    ui.alert('The spreadsheet header was created successfully. ' +
-             'Now you can start editing the spreadsheet. \n\n ' +
-             'You can add another language by inserting its code (for example: es, pt-br) in the header ' +
+    ui.alert('The spreadsheet header was created successfully.\n\n' +
+             'Now you can start editing the spreadsheet. \n\nAdd extra ' +
+             'language columns by setting it\'s code in the header (for example: es, pt-br, etc)' +
              ' \nto the ' +
-             'right of the default language (cells D1, E1 and so on). ');
+             'right of the default language (cells D1, E1 and and so on). ');
     range = sheet.getRange(1, 4, 1);
     range.activate();
   } 
@@ -264,29 +258,19 @@ function initialize () {
 function getOrCreateFolder(folderName, optFolder, optFolderPath){ 
   try { 
     if (optFolderPath != undefined){ 
-      var folder = DocsList.getFolder(optFolderPath); 
+      var folder = getFolderByPath(optFolderPath); 
     } else { 
-      var folder = DocsList.getFolder(folderName); 
+      var folder = getFolderByPath(folderName); 
     } 
     return folder; 
   } catch(e) { 
     if (optFolder == undefined) { 
-      var folder = DocsList.createFolder(folderName); 
+      var folder = DriveApp.createFolder(folderName); 
     } else { 
       var folder = optFolder.createFolder(folderName); 
     } 
     return folder; 
   } 
-}
-
-function deleteFileByName(dir, fileName){
-  var docs = dir.find(fileName)
-  for(n=0;n<docs.length;++n){
-    if(docs[n].getName() == fileName){
-      var ID = docs[n].getId()
-      DocsList.getFileById(ID).setTrashed(true)
-    }
-  }
 }
 
 function replaceSpecialChars(text) {
@@ -296,7 +280,7 @@ function replaceSpecialChars(text) {
     return unicodeValue(c);
   });
   
-  converted = converted.replace(/'/g, "\\'");
+  converted = converted.replace("'", "\\'");
   
   return converted;
 }
@@ -308,7 +292,7 @@ function replaceUnicode(text) {
     return String.fromCharCode(parseInt(b, 16));
   });
   
-  converted = converted.replace(/\\\'/g, "'");
+  converted = converted.replace("\\'", "'");
   return converted;
 }
 
@@ -349,18 +333,15 @@ function importAndroidFile(e) {
   
   var html = HtmlService.createHtmlOutput(getAndroidFormHtml())
   .setWidth(250)
-  .setHeight(120);
+  .setHeight(200);
   SpreadsheetApp.getUi()
   .showModalDialog(html, 'Upload Android Strings XML File');
 }
 
 function processAndroidForm(formObject) {
-  
-  showLoadingDialog("Processing file...");
-  
   var formBlob = formObject.myFile;
   var driveFile = DriveApp.createFile(formBlob);
-
+  
   var sheet = SpreadsheetApp.getActiveSheet();
   var rows = sheet.getDataRange();
   var numRows = rows.getNumRows();
@@ -386,7 +367,6 @@ function processAndroidForm(formObject) {
         if(!row[langIndex - 1]) {
           var range = sheet.getRange(x+1, langIndex);
           range.setValue(replaceUnicode(text));
-          break;
         } 
       }
 
@@ -397,7 +377,6 @@ function processAndroidForm(formObject) {
           var range = sheet.getRange(x+1, 1);
           range.setValue(key);
           spareEntries[i].setText("");
-            break;
         } 
       }
     }
@@ -418,8 +397,7 @@ function processAndroidForm(formObject) {
   }
   
   driveFile.setTrashed(true);
-  
-  showSuccessImportedMessage(i + " strings found. <br>");
+  return  i + " strings found. ";
 }
 
 function getAndroidFormHtml() {
@@ -438,14 +416,22 @@ function getAndroidFormHtml() {
   combo += "</select>";  
   
   return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
+    "<script>" +
+    "function updateUrl(content) {" +
+    "  var div = document.getElementById('output');" +
+    "  div.innerHTML = '<br><br><center> ' + content + '</center><br><br>';" +
+    "}" +
+    "  </script>" +
     "<form id=\"myForm\">" +
     "<input name=\"myFile\" type=\"file\" />" +
     "<br /><br />Language: " + combo +
-    " <br><br> <div align=\"right\"><input type=\"button\" value=\"Close\"" +
+    " <br><br> <input type=\"button\" value=\"Close\"" +
     "      onclick=\"google.script.host.close()\" /> "+
       "  <input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Import\"" +
     "      onclick=\"google.script.run" +
-    "          .processAndroidForm(this.parentNode.parentNode)\" /></div>" +
+    "          .withSuccessHandler(updateUrl)" +
+    "          .processAndroidForm(this.parentNode)\" />" +
+    "" +
     "</form> " +
     "<div id=\"output\"></div> ";
 }
@@ -454,19 +440,16 @@ function getAndroidFormHtml() {
 function importiosFile(e) {
   
   var html = HtmlService.createHtmlOutput(getIosHtml())
-  .setWidth(250)
-  .setHeight(120);
+  .setWidth(260)
+  .setHeight(220);
   SpreadsheetApp.getUi()
   .showModalDialog(html, 'Upload iOS Strings File');
 }
 
 function processiosForm(formObject) {
-  
-  showLoadingDialog("Processing file...");
-  
   var formBlob = formObject.myFile;
   var driveFile = DriveApp.createFile(formBlob);
-
+  
   var sheet = SpreadsheetApp.getActiveSheet();
   var rows = sheet.getDataRange();
   var numRows = rows.getNumRows();
@@ -479,19 +462,36 @@ function processiosForm(formObject) {
   
   var i = 0;
   var found  = 0;
-  
-  var texts = "";
+  var logs = "";
   
   var entries = content.split("\n");
   var spareEntries = entries.slice(0);
   for (i = 0; i < entries.length; i++) {
+  
+    logs += "Parsing ("+entries[i]+")\n";
     
     // regex to capture the key and the text in the format:
     // "key" = "text"; 
-    var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/;  
+    var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
+    
     var match = regex.exec(entries[i]);
+    logs += "match -> ("+match+")\n";
+    var retries = 0;
+    while ((match == null) && (retries < 5)) {
+      // Sometimes the match fails in the first time. It's probably a bug
+      // on javascript. So, let's try again.
+      var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
+      match = retryRegex.exec(entries[i]);
+      logs += "retryMatch -> ("+match+") retry #" + retries +  "\n" ;
 
+      if(match != null) {
+        break;
+      }
+      retries++;
+    }
+    
     if(match != null) {
+      logs += "match ("+match.toString()+")\n";
       var key = match[1];
       var text = match[2];
       found++;
@@ -505,17 +505,15 @@ function processiosForm(formObject) {
           if(!row[langIndex - 1]) {
             var range = sheet.getRange(x+1, langIndex);
             range.setValue(text);
-            break;
           } 
         }
-        
-        if(row[langIndex - 1] && ((row[langIndex - 1] == text) 
-          || (substitutionsForAndroid(replaceSpecialChars(text)) == substitutionsForAndroid(replaceSpecialChars(row[langIndex - 1])).trim()))) {
+
+        if(row[langIndex] && ((row[langIndex] == text) 
+          || (text == substitutionsForAndroid(replaceSpecialChars(row[langIndex]))))) {
             // if text already exists, just import the key
             var range = sheet.getRange(x+1, 2);
             range.setValue(key);
             spareEntries[i] = "";
-            break;
         }
       }
     }
@@ -525,8 +523,22 @@ function processiosForm(formObject) {
   lastIndex++;
   for (var j = 0; j <= spareEntries.length; j++) {
     if(spareEntries[j] != "") {
-      var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/;
+      var regex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
       var match = regex.exec(spareEntries[j]);
+      
+      var retries = 0;
+      while ((match == null) && (retries < 5)) {
+        // Sometimes the match fails in the first time. It's probably a bug
+        // on javascript. So, let's try again.
+        var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
+        match = retryRegex.exec(spareEntries[j]);
+        logs += "retryMatch -> ("+match+") retry #" + retries +  "\n" ;
+        
+        if(match != null) {
+          break;
+        }
+        retries++;
+      }
       
       if(match != null) {
         var key = match[1];
@@ -540,10 +552,13 @@ function processiosForm(formObject) {
       }
     }
   }
+  
+  var folder = getFolderByPath('easyi18n');
+  folder.createFile('log.txt', logs);
 
   driveFile.setTrashed(true);
   
-  showSuccessImportedMessage(found + " strings found. <br>" + texts);
+  return  found + " strings found.";
 }
 
 // Debug function
@@ -571,64 +586,22 @@ function getIosHtml() {
   combo += "</select>";  
 
   return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
+    "<script>" +
+    "function updateUrl(content) {" +
+    "  var div = document.getElementById('output');" +
+    "  div.innerHTML = '<br><br><center> ' + content + '</center><br><br>';" +
+    "}" +
+    "  </script>" +
     "<form id=\"myForm\">" +
     "<input name=\"myFile\" type=\"file\" />" +
     "<br /><br />Language: " + combo +
-    " <br><br> <div align=\"right\"><input type=\"button\" value=\"Close\"" +
+    " <br><br> <input type=\"button\" value=\"Close\"" +
     "      onclick=\"google.script.host.close()\" /> "+
     "  <input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Import\"" +
     "      onclick=\"google.script.run" +
-    "          .processiosForm(this.parentNode.parentNode)\" /></div>" +
+    "          .withSuccessHandler(updateUrl)" +
+    "          .processiosForm(this.parentNode)\" />" +
     "" +
     "</form> " +
     "<div id=\"output\"></div> ";
-}
-
-/**
-* Shows a loading dialog.
-*/
-function showLoadingDialog(text) {
-  var html = HtmlService.createHtmlOutput(getLoadingHtml(text))
-  .setWidth(180)
-  .setHeight(60);
-  
-  return SpreadsheetApp.getUi()
-  .showModalDialog(html, " ");
-}
-
-/**
-* Returns the HTML for loading dialog.
-*/
-function getLoadingHtml(text) {
-  return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
-    "<div><img src=\"http://www.felipesilveira.com.br/localizationtool/loading.gif\" align=\"middle\"" +
-    "style=\"margin:10px;vertical-align:middle;\"><b>" + text + "</b></div> ";
-}
-
-/**
-* Shows the success message after importing localization files.
-*/
-function showSuccessImportedMessage(message) {
-  var html = HtmlService.createHtmlOutput(getSuccessImportedMessageHtml(message))
-  .setWidth(220)
-  .setHeight(130);
-  
-  SpreadsheetApp.getUi()
-  .showModalDialog(html, 'Import Localization Files');
-}
-
-/**
-* Returns the HTML to be displayed after localization files
-* import.
-*/
-function getSuccessImportedMessageHtml(message) {
-  var folder = DocsList.getFolder('LocalizationTool');
-
-  return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
-    "<div>The file was sucessfully imported." +
-    " <br><br>" + message + "</div>" +
-    "<form id=\"myForm\">" +
-    " <br><br> <center><input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Close\"" +
-    "      onclick=\"google.script.host.close()\" /></center> "+
-    "</form> ";
 }
