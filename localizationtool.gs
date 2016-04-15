@@ -7,9 +7,10 @@
 * Author: Felipe Silveira
 * 
 * Licensed under GPL v2.0
-* version 0.44
+* version 0.47
 *
 * More info on felipesilveira.com.br/localizationtool or github.com/felipesilveira/localizationtool
+*
 */
 
 /**
@@ -23,6 +24,8 @@ function generateFiles() {
   var app = UiApp.createApplication();
   
   var titleRow = values[0];
+  
+  showLoadingDialog("Generating files...");
   
   // Generating Android file
   for (var j = 2; j < titleRow.length; j++) {
@@ -174,7 +177,7 @@ function onInstall() {
 }
 
 /**
-* Shows the about dialog.
+* Shows the help dialog.
 */
 function showHelp() {
   var html = HtmlService.createHtmlOutput(getHelpHtml())
@@ -223,7 +226,7 @@ function initialize () {
   
   var result = ui.alert(
     'Please confirm',
-    'To start using this tool, the first line of this spreadsheet (the header) will be modified. ' +
+    'To start using this tool, the first line of this spreadsheet (the header) needs to be modified. ' +
     '\nIf it is already filled, the data will be lost. Are you sure you want to continue?',
     ui.ButtonSet.YES_NO);
   
@@ -299,7 +302,7 @@ function replaceUnicode(text) {
 function substitutionsForAndroid(text) {
   if(!text) return "";
   if(!isNaN(text)) return text;
-  // %@ doesn't exists in android, so replace it by %s
+  // %@ doesn't exist in android, so replace it by %s
   var converted = text.replace(/%@/g, "%s");
   converted = converted.replace(/\$@/g, "$s");
   
@@ -339,6 +342,10 @@ function importAndroidFile(e) {
 }
 
 function processAndroidForm(formObject) {
+  
+  showLoadingDialog("Processing file...");
+
+  
   var formBlob = formObject.myFile;
   var driveFile = DriveApp.createFile(formBlob);
   
@@ -397,7 +404,9 @@ function processAndroidForm(formObject) {
   }
   
   driveFile.setTrashed(true);
-  return  i + " strings found. ";
+  
+  showSuccessImportedMessage(i + " strings found. <br>");
+  
 }
 
 function getAndroidFormHtml() {
@@ -416,22 +425,14 @@ function getAndroidFormHtml() {
   combo += "</select>";  
   
   return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
-    "<script>" +
-    "function updateUrl(content) {" +
-    "  var div = document.getElementById('output');" +
-    "  div.innerHTML = '<br><br><center> ' + content + '</center><br><br>';" +
-    "}" +
-    "  </script>" +
     "<form id=\"myForm\">" +
     "<input name=\"myFile\" type=\"file\" />" +
     "<br /><br />Language: " + combo +
-    " <br><br> <input type=\"button\" value=\"Close\"" +
+    " <br><br> <div align=\"right\"><input type=\"button\" value=\"Close\"" +
     "      onclick=\"google.script.host.close()\" /> "+
       "  <input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Import\"" +
     "      onclick=\"google.script.run" +
-    "          .withSuccessHandler(updateUrl)" +
-    "          .processAndroidForm(this.parentNode)\" />" +
-    "" +
+    "          .processAndroidForm(this.parentNode.parentNode)\" /></div>" +
     "</form> " +
     "<div id=\"output\"></div> ";
 }
@@ -447,6 +448,9 @@ function importiosFile(e) {
 }
 
 function processiosForm(formObject) {
+  
+  showLoadingDialog("Processing file...");
+  
   var formBlob = formObject.myFile;
   var driveFile = DriveApp.createFile(formBlob);
   
@@ -477,7 +481,7 @@ function processiosForm(formObject) {
     var match = regex.exec(entries[i]);
     logs += "match -> ("+match+")\n";
     var retries = 0;
-    while ((match == null) && (retries < 5)) {
+    while ((match == null) && (retries < 3)) {
       // Sometimes the match fails in the first time. It's probably a bug
       // on javascript. So, let's try again.
       var retryRegex = /"([^"\\]*(?:\\.[^"\\]*)*)"\s*=\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*;/g;
@@ -516,7 +520,7 @@ function processiosForm(formObject) {
             spareEntries[i] = "";
         }
       }
-    }
+    } 
   }
   
   // Adding the strings not found
@@ -558,7 +562,7 @@ function processiosForm(formObject) {
 
   driveFile.setTrashed(true);
   
-  return  found + " strings found.";
+  showSuccessImportedMessage(found + " strings found. <br>" + texts);
 }
 
 // Debug function
@@ -586,22 +590,64 @@ function getIosHtml() {
   combo += "</select>";  
 
   return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
-    "<script>" +
-    "function updateUrl(content) {" +
-    "  var div = document.getElementById('output');" +
-    "  div.innerHTML = '<br><br><center> ' + content + '</center><br><br>';" +
-    "}" +
-    "  </script>" +
     "<form id=\"myForm\">" +
     "<input name=\"myFile\" type=\"file\" />" +
     "<br /><br />Language: " + combo +
-    " <br><br> <input type=\"button\" value=\"Close\"" +
+    " <br><br> <div align=\"right\"><input type=\"button\" value=\"Close\"" +
     "      onclick=\"google.script.host.close()\" /> "+
     "  <input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Import\"" +
     "      onclick=\"google.script.run" +
-    "          .withSuccessHandler(updateUrl)" +
-    "          .processiosForm(this.parentNode)\" />" +
+    "          .processiosForm(this.parentNode.parentNode)\" /></div>" +
     "" +
     "</form> " +
     "<div id=\"output\"></div> ";
+}
+
+/**
+* Shows a loading dialog.
+*/
+function showLoadingDialog(text) {
+  var html = HtmlService.createHtmlOutput(getLoadingHtml(text))
+  .setWidth(180)
+  .setHeight(60);
+  
+  return SpreadsheetApp.getUi()
+  .showModalDialog(html, " ");
+}
+
+/**
+* Returns the HTML for loading dialog.
+*/
+function getLoadingHtml(text) {
+  return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
+    "<div><img src=\"http://www.felipesilveira.com.br/localizationtool/loading.gif\" align=\"middle\"" +
+    "style=\"margin:10px;vertical-align:middle;\"><b>" + text + "</b></div> ";
+}
+
+/**
+* Shows the success message after importing localization files.
+*/
+function showSuccessImportedMessage(message) {
+  var html = HtmlService.createHtmlOutput(getSuccessImportedMessageHtml(message))
+  .setWidth(220)
+  .setHeight(130);
+  
+  SpreadsheetApp.getUi()
+  .showModalDialog(html, 'Import Localization Files');
+}
+
+/**
+* Returns the HTML to be displayed after localization files
+* import.
+*/
+function getSuccessImportedMessageHtml(message) {
+  var folder = DocsList.getFolder('LocalizationTool');
+
+  return "<link rel=\"stylesheet\" href=\"https://ssl.gstatic.com/docs/script/css/add-ons.css\">" +
+    "<div>The file was sucessfully imported." +
+    " <br><br>" + message + "</div>" +
+    "<form id=\"myForm\">" +
+    " <br><br> <center><input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Close\"" +
+    "      onclick=\"google.script.host.close()\" /></center> "+
+    "</form> ";
 }
