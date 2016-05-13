@@ -43,7 +43,7 @@ In the created project, copy the contents of localizationtool.gs. Go back to the
 <h3>WishList (or next features)</h3>
 
 - Support for android string-array and plurals.
-- Settings (So the user will be able to select the directory where the files will be generating.
+- Settings (So the user will be able to select the directory where the files will be generated.
 - Duplicate strings checker
 - Windows Phone support.
 
