@@ -7,7 +7,7 @@
 * Author: Felipe Silveira
 * 
 * Licensed under GPL v2.0
-* version 0.47
+* version 0.5
 *
 * More info on felipesilveira.com.br/localizationtool or github.com/felipesilveira/localizationtool
 *
@@ -166,6 +166,7 @@ function onOpen(e) {
            .addItem('Import Android File', 'importAndroidFile')
            .addItem('Import iOS File', 'importiosFile'))
        .addItem('Generate Localization Files', 'generateFiles')
+       .addItem('Highlight different keys', 'highlightDifferentKeys')
        .addSeparator()
        .addItem('Help', 'showHelp')
        .addItem('About', 'showAbout')
@@ -343,9 +344,6 @@ function importAndroidFile(e) {
 
 function processAndroidForm(formObject) {
   
-  showLoadingDialog("Processing file...");
-
-  
   var formBlob = formObject.myFile;
   var driveFile = DriveApp.createFile(formBlob);
   
@@ -448,8 +446,6 @@ function importiosFile(e) {
 }
 
 function processiosForm(formObject) {
-  
-  showLoadingDialog("Processing file...");
   
   var formBlob = formObject.myFile;
   var driveFile = DriveApp.createFile(formBlob);
@@ -650,4 +646,63 @@ function getSuccessImportedMessageHtml(message) {
     " <br><br> <center><input type=\"button\" style=\"background:#376FF4;color:#FFF;\" value=\"Close\"" +
     "      onclick=\"google.script.host.close()\" /></center> "+
     "</form> ";
+}
+
+
+/**
+* Highlights the keys not present on both Android and iOS.
+* This is useful for projects using the same text keys accross the two platforms.
+*/
+function highlightDifferentKeys() {
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var rows = sheet.getDataRange();
+  var numRows = rows.getNumRows();
+  var values = rows.getValues();
+  
+  var titleRow = values[0];
+  
+  // highlighting android keys not present on iOS
+  for (var i = 1; i <= numRows - 1; i++) {
+      var row = values[i];
+      var androidKey = row[0];
+      var keyfound = false;
+ 
+      for (var j = 1; j <= numRows - 1; j++) {
+        var row2 = values[j];
+        
+        if(androidKey == row2[1]) {
+          keyfound = true;
+          break;
+        }
+      }
+    
+      var range = sheet.getRange(i+1, 1, 1);
+    
+      if(!keyfound) {
+        range.setBackground("#FA8072");
+      } 
+  }
+  
+  // highlighting iOS keys not present on Android
+  for (var i = 1; i <= numRows - 1; i++) {
+      var row = values[i];
+      var iosKey = row[1];
+      var keyfound = false;
+ 
+      for (var j = 1; j <= numRows - 1; j++) {
+        var row2 = values[j];
+        
+        if(iosKey == row2[0]) {
+          keyfound = true;
+          break;
+        }
+      }
+    
+      var range = sheet.getRange(i+1, 2, 1);
+    
+      if(!keyfound) {
+        range.setBackground("#FA8072");
+      } 
+  }
+    
 }
